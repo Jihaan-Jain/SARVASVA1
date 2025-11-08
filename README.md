@@ -91,7 +91,7 @@ The assistant generates responses in a clear, structured format:
 - **AI Processing:** OpenAI API
 - **Language & Speech:** **Sarvam AI APIs** (Translation, Speech-to-Text, Text-to-Speech)
 - **Frontend:** Web-based chatbot & Telegram Bot
-- **Hosting:** Planned on AWS / Google Cloud
+- **Hosting:** Planned on AWS / Google Cloud / RunAnywhere SDK
 
 ---
 
