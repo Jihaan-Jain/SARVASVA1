@@ -10,15 +10,17 @@ from dotenv import load_dotenv
 import logging
 from groq import Groq
 import re
+
+# --- VERCEL FIX: Local OS-level dependencies neutralized ---
+# These libraries are kept for structure, but their core functionality 
+# (Tesseract/Poppler) will fail on Vercel unless replaced by a cloud API.
 from pdf2image import convert_from_bytes
-# --- TESSERACT OCR IMPORTS & CONFIGURATION (Free Local Solution) ---
 import pytesseract
 from PIL import Image
 from io import BytesIO
 
-# --- CRUCIAL FOR WINDOWS: Set the command path for the Tesseract executable ---
-# You MUST verify this path matches your Tesseract installation directory.
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' 
+# --- CRUCIAL VERCEL FIX: Remove/Comment out all local path configuration ---
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' 
 # --------------------------------------------------------------------------
 
 # Load environment variables
@@ -51,8 +53,6 @@ client = Groq(api_key=GROQ_API_KEY)
 conversation_sessions = {}
 TRANSLATE_API_URL = "https://api.sarvam.ai/translate"
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg', 'm4a', 'webm'}
-
-# NOTE: Google Cloud Vision client initialization code REMOVED.
 
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
@@ -279,51 +279,21 @@ def translate_text():
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
 
-# --- REPLACED FUNCTION: Now uses Tesseract (Local, Free) ---
-# --- Corrected and Simplified perform_ocr Function ---
-
+# --- VERCEL FIX: OCR Function Mocked Out for Safe Deployment ---
 def perform_ocr(file_bytes, file_type):
-    """Perform OCR using Tesseract, handling PDF to image conversion via Poppler."""
-    raw_text = ""
-    
-    # We only check the file_type (MIME type from request). NO document_file.filename check.
-    if 'pdf' in file_type.lower():
-        try:
-            # NOTE: If Poppler is not in the system PATH, you MUST specify poppler_path
-            # IMPORTANT: The path below is illustrative. Replace it with your ACTUAL Poppler bin path.
-            # Replace the path below with your correct path to the Poppler bin folder:
-            poppler_path_win = r'C:\Users\jainj\Downloads\Release-25.07.0-0\poppler-25.07.0\Library\bin' 
-            
-            images = convert_from_bytes(file_bytes, poppler_path=poppler_path_win) 
-            
-            for image in images:
-                # Process each page (image) with Tesseract
-                raw_text += pytesseract.image_to_string(image, lang='eng', config='--psm 3') + "\n\n"
-        
-        except Exception as e:
-            # Re-raise the error to include details about the Poppler path failure
-            raise Exception(f"PDF Handling Error: Poppler/PDF2Image failed. Ensure Poppler is installed and poppler_path is set in perform_ocr. Details: {e}")
-            
-    else: # Process as a standard image (PNG, JPEG)
-        try:
-            image = Image.open(BytesIO(file_bytes))
-            raw_text = pytesseract.image_to_string(image, lang='eng', config='--psm 6')
-        
-        except Exception as e:
-            raise Exception(f"Image Reading Error: Pillow/Tesseract failed. Details: {e}")
-
-    if not raw_text.strip():
-        raise Exception("OCR failed to extract any text from the document.")
-        
-    return raw_text
-
+    """
+    MOCKED OCR FUNCTION: This function will fail on Vercel due to missing Tesseract/Poppler executables.
+    It has been replaced with a simple mock that raises an error, ensuring the endpoint fails cleanly
+    without crashing the entire Vercel function.
+    """
+    # Log the attempt but immediately raise a controlled error
+    logging.warning("Attempted local OCR (Tesseract/Poppler) which is not supported on Vercel.")
+    raise Exception("OCR functionality is currently disabled in the cloud. Please use a cloud OCR API (e.g., Google Vision) instead of local Tesseract/Poppler.")
 
 # NEW: Document Reader Endpoint
 @app.route('/read-document', methods=['POST'])
 def read_document():
     """Handle document upload, OCR, LLM simplification, and translation/TTS setup."""
-    
-    # NOTE: Check for vision_client initialization REMOVED.
     
     if 'document' not in request.files:
         return jsonify({'error': 'No document file uploaded'}), 400
@@ -338,10 +308,12 @@ def read_document():
     file_bytes = document_file.read()
     
     try:
-        # --- 1. Perform OCR to extract text (using Tesseract) ---
-        # document_file.content_type provides the MIME type (e.g., 'application/pdf')
+        # --- 1. Perform OCR to extract text (MOCKED) ---
+        # This will now fail gracefully due to the mocked function
         raw_text = perform_ocr(file_bytes, document_file.content_type) 
         
+        # NOTE: The code below this point will not execute until perform_ocr is implemented with a cloud service.
+
         if not raw_text.strip():
             return jsonify({'error': 'Could not extract text from the document. Please ensure the image/PDF is clear.'}), 400
 
@@ -403,6 +375,7 @@ def read_document():
         })
 
     except Exception as e:
+        # This is where the mocked error will be caught
         logging.error(f"Error in document reader: {str(e)}")
         return jsonify({"error": f"Failed to process document: {str(e)}"}), 500
 
@@ -476,7 +449,6 @@ def speech_to_text():
     finally:
         if os.path.exists(file_path):
             os.remove(file_path)
-
 
 
 @app.route('/text-to-speech', methods=['POST'])
@@ -591,6 +563,6 @@ def text_to_speech():
         logging.error(f"Unexpected error in TTS: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
-
-if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000, debug=True)
+# VERCEL FIX: The local run block is removed.
+# if __name__ == '__main__':
+#     app.run(host='127.0.0.1', port=5000, debug=True)
