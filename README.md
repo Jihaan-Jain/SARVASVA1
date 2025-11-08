@@ -1,13 +1,6 @@
 <div align="center">
 <h1>SARVASVA (सर्वस्व)</h1>
 
-<<<<<<< HEAD
-# 🌟 Track 2 : Fintech
-=======
-# 🌟 FinTech : Multilingual Conversational Loan Advisor
-</div>
->>>>>>> a178663dfd88ca0f9fd1ed99015510db8adbdd13
-
 ### Overview
 
 This project is a **multilingual conversational AI assistant** crafted to assist users with:
@@ -137,8 +130,8 @@ The assistant generates responses in a clear, structured format:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yashdivya5/Sarvasva.git
-cd loan-advisor-ai
+git clone https://github.com/Jihaan-Jain/SARVASVA.git
+
 ```
 
 ### 2. Create a Virtual Environment
@@ -159,15 +152,6 @@ pip install -r requirements.txt
 
 ```bash
 python app.py
-```
-
-### 5. Running the Telegram Bot
-
-While the Telegram bot is available for an alternative interface, the core functionality remains the conversational AI assistant:
-
-```bash
-cd telebot
-python bot.py
 ```
 
 ---
