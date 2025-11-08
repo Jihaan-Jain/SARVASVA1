@@ -1,9 +1,14 @@
 <div align="center">
 <h1>SARVASVA (सर्वस्व)</h1>
 
+<<<<<<< HEAD
 # 🌟 Track 2 : Fintech
+=======
+# 🌟 FinTech : Multilingual Conversational Loan Advisor
+</div>
+>>>>>>> a178663dfd88ca0f9fd1ed99015510db8adbdd13
 
-## Overview
+### Overview
 
 This project is a **multilingual conversational AI assistant** crafted to assist users with:
 
@@ -41,6 +46,41 @@ Watch the full system functionality demonstration: [Watch Video](https://drive.g
 
 - **Actionable Advice:** Delivers practical tips on savings, credit management, and debt handling.
 - **Alternative Solutions:** Suggests other financing options when loan eligibility isn’t met.
+
+### 4. Temple Gold Digitization (Mandir Sona)
+
+- **Blockchain Tokenization:** Convert household/temple gold into digital NFTs (1 token = 1 gram)
+- **Borrow Without Deposit:** Get up to 70% of gold value as loan while gold stays at home
+- **Simple Process:** Upload photo → AI verification → Instant digital certificate
+- **Secure:** Gold locked digitally on Polygon blockchain during loan period
+
+### 5. Smart Loan Comparison & Recommendation
+
+- **Compare Multiple Banks:** Analyzes interest rates, processing fees, and terms across lenders
+- **Personalized Recommendations:** Suggests best loan option based on your profile
+- **Transparent Display:** Shows EMIs, total payable amount, and hidden charges upfront
+- **Time-Saving:** Get best rates in seconds instead of visiting multiple banks
+
+### 6. Credit Twin - Personalized AI Credit Coach
+
+- **Predictive Analysis:** "Save ₹500/month → Boost eligibility by 12%"
+- **Gamified Progress:** Level up your financial credibility with actionable milestones
+- **Future Simulations:** See how financial decisions impact your loan eligibility
+- **Privacy First:** Credit twin data secured on blockchain ledger
+
+### 7. AI Ghost Transaction Simulator
+
+- **Pre-Commitment Visualization:** See exact monthly impact before taking loan
+- **Interactive Sandbox:** Test different loan amounts, tenures, and interest rates
+- **Cash Flow Forecast:** Understand how EMI affects your monthly budget
+- **Risk Assessment:** Get warnings about over-borrowing or financial strain
+
+### 8.Voice-Based Vernacular Document Reader
+
+- **OCR Technology:** Upload any loan document (PDF, image)
+- **Read Aloud:** AI reads document in your native language using Sarvam TTS
+- **Jargon Simplification:** Explains complex terms like "collateral," "floating rate," "moratorium"
+- **Highlight Key Clauses:** Automatically identifies important sections
 
 ---
 
