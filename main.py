@@ -10,10 +10,20 @@ from dotenv import load_dotenv
 import logging
 from groq import Groq
 import re
+from pdf2image import convert_from_bytes
+# --- TESSERACT OCR IMPORTS & CONFIGURATION (Free Local Solution) ---
+import pytesseract
+from PIL import Image
+from io import BytesIO
+
+# --- CRUCIAL FOR WINDOWS: Set the command path for the Tesseract executable ---
+# You MUST verify this path matches your Tesseract installation directory.
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' 
+# --------------------------------------------------------------------------
 
 # Load environment variables
 load_dotenv()
-lang = "en-IN"  # Default language code
+lang = "en-IN" 
 
 # Flask app setup
 app = Flask(__name__, static_folder='static', template_folder="templates")
@@ -26,8 +36,7 @@ logging.basicConfig(level=logging.INFO)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB max file size
-
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 
 SARVAM_API_KEY = os.getenv('SARVAM_API_KEY')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
@@ -37,12 +46,13 @@ if not SARVAM_API_KEY:
 if not GROQ_API_KEY:
     raise ValueError("GROQ_API_KEY is missing. Please set it in the environment variables.")
 
-
 # Initialize Groq client
 client = Groq(api_key=GROQ_API_KEY)
 conversation_sessions = {}
 TRANSLATE_API_URL = "https://api.sarvam.ai/translate"
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'ogg', 'm4a', 'webm'}
+
+# NOTE: Google Cloud Vision client initialization code REMOVED.
 
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
@@ -51,7 +61,6 @@ def allowed_file(filename):
 @app.route('/')
 def home():
     """ Serve the frontend HTML file """
-    # Assuming your HTML file is named index.html in the 'templates' folder
     return render_template("index.html")
 
 
@@ -59,7 +68,6 @@ def home():
 def set_language():
     """Set the default language for the application."""
     global lang
-
     data = request.json
     new_lang = data.get("language_code", "").strip()
 
@@ -99,7 +107,6 @@ def chat():
 
         # Add system prompt only once per conversation
         if not session["prompt_added"]:
-            # NOTE: System prompt is long, keep it concise here for readability
             system_prompt = '''You are a friendly, professional, and highly knowledgeable loan assistant. Your goal is to help users understand their loan eligibility in an interactive and engaging manner. Start by warmly greeting the user and asking for the basic details like name and age etc and then ask required details step by step (e.g., type of loan, loan amount, tenure of loan, age, income, credit score, etc.) instead of requesting everything at once. Ask brief, clear questions to avoid overwhelming the user. Don't forget send only plain text no stars or any other special characters in the text.'''
             session["messages"].append({"role": "system", "content": system_prompt})
             session["prompt_added"] = True
@@ -114,10 +121,8 @@ def chat():
             if role == "user":
                 session["question_count"] += 1
 
-        # Prediction logic... (kept the same as your original code for continuity)
         lower_message = user_message_to_llm.lower()
         if (session["question_count"] >= 15 or lower_message.find("eligib") >= 0) and not session["assessment_provided"]:
-            # The complex prediction prompt is omitted here for brevity but assumes your original logic handles it
             prediction_instruction = "Based on all information gathered so far, provide a final loan eligibility assessment. Ensure to consider type of loan, amount of loan, and loan tenure as mandatory factors. Provide full details on eligibility, required documents, and next steps."
             session["messages"].append({"role": "system", "content": prediction_instruction})
             session["assessment_provided"] = True
@@ -144,7 +149,6 @@ def chat():
 
 def perform_translation(input_text, source_lang, target_lang, speaker_gender, mode, output_script, numerals_format):
     """Perform translation request to Sarvam AI API (Helper for /translate)"""
-    # ... [Your existing perform_translation logic remains here]
     try:
         payload = {
             "input": input_text,
@@ -173,6 +177,13 @@ def perform_translation(input_text, source_lang, target_lang, speaker_gender, mo
                 "source_language_code": response_data.get("source_language_code", "unknown")
             })
 
+        if request.path != '/translate':
+            return {
+                "error": response_data.get("error", {}).get("message", "Translation failed"),
+                "request_id": response_data.get("error", {}).get("request_id", "unknown"),
+                "details": response_data
+            }
+            
         return jsonify({
             "error": response_data.get("error", {}).get("message", "Translation failed"),
             "request_id": response_data.get("error", {}).get("request_id", "unknown"),
@@ -180,14 +191,15 @@ def perform_translation(input_text, source_lang, target_lang, speaker_gender, mo
         }), 500
 
     except requests.exceptions.RequestException as e:
+        if request.path != '/translate':
+            return {"error": "API request failed", "details": str(e)}
+            
         return jsonify({"error": "API request failed", "details": str(e)}), 500
 
 
 def translate_long_text(input_text, source_lang, target_lang, speaker_gender, mode, output_script, numerals_format):
     """Handle translation of texts longer than 1000 characters by splitting into chunks (Helper for /translate)"""
-    # ... [Your existing translate_long_text logic remains here]
     sentences = re.split(r'(?<=[.!?])\s+', input_text)
-    
     chunks = []
     current_chunk = ""
     
@@ -203,6 +215,8 @@ def translate_long_text(input_text, source_lang, target_lang, speaker_gender, mo
         chunks.append(current_chunk.strip())
     
     translated_chunks = []
+    is_api_call = request.path == '/translate'
+
     for chunk in chunks:
         response = perform_translation(
             chunk, 
@@ -214,19 +228,30 @@ def translate_long_text(input_text, source_lang, target_lang, speaker_gender, mo
             numerals_format
         )
         
-        response_data = response.get_json() if hasattr(response, 'get_json') else response
-        if "translated_text" in response_data:
-            translated_chunks.append(response_data["translated_text"])
+        if is_api_call:
+            response_data = response.get_json()
+            if "translated_text" in response_data:
+                translated_chunks.append(response_data["translated_text"])
+            else:
+                return response
         else:
-            return response
+            if "translated_text" in response:
+                translated_chunks.append(response["translated_text"])
+            else:
+                return response
     
     full_translation = " ".join(translated_chunks)
     
-    return jsonify({
+    result_dict = {
         "translated_text": full_translation,
         "chunked_translation": True,
         "chunks_count": len(chunks)
-    })
+    }
+    
+    if is_api_call:
+        return jsonify(result_dict)
+    
+    return result_dict
 
 
 @app.route('/translate', methods=['POST'])
@@ -252,6 +277,134 @@ def translate_text():
 
     except Exception as e:
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
+
+
+# --- REPLACED FUNCTION: Now uses Tesseract (Local, Free) ---
+# --- Corrected and Simplified perform_ocr Function ---
+
+def perform_ocr(file_bytes, file_type):
+    """Perform OCR using Tesseract, handling PDF to image conversion via Poppler."""
+    raw_text = ""
+    
+    # We only check the file_type (MIME type from request). NO document_file.filename check.
+    if 'pdf' in file_type.lower():
+        try:
+            # NOTE: If Poppler is not in the system PATH, you MUST specify poppler_path
+            # IMPORTANT: The path below is illustrative. Replace it with your ACTUAL Poppler bin path.
+            # Replace the path below with your correct path to the Poppler bin folder:
+            poppler_path_win = r'C:\Users\jainj\Downloads\Release-25.07.0-0\poppler-25.07.0\Library\bin' 
+            
+            images = convert_from_bytes(file_bytes, poppler_path=poppler_path_win) 
+            
+            for image in images:
+                # Process each page (image) with Tesseract
+                raw_text += pytesseract.image_to_string(image, lang='eng', config='--psm 3') + "\n\n"
+        
+        except Exception as e:
+            # Re-raise the error to include details about the Poppler path failure
+            raise Exception(f"PDF Handling Error: Poppler/PDF2Image failed. Ensure Poppler is installed and poppler_path is set in perform_ocr. Details: {e}")
+            
+    else: # Process as a standard image (PNG, JPEG)
+        try:
+            image = Image.open(BytesIO(file_bytes))
+            raw_text = pytesseract.image_to_string(image, lang='eng', config='--psm 6')
+        
+        except Exception as e:
+            raise Exception(f"Image Reading Error: Pillow/Tesseract failed. Details: {e}")
+
+    if not raw_text.strip():
+        raise Exception("OCR failed to extract any text from the document.")
+        
+    return raw_text
+
+
+# NEW: Document Reader Endpoint
+@app.route('/read-document', methods=['POST'])
+def read_document():
+    """Handle document upload, OCR, LLM simplification, and translation/TTS setup."""
+    
+    # NOTE: Check for vision_client initialization REMOVED.
+    
+    if 'document' not in request.files:
+        return jsonify({'error': 'No document file uploaded'}), 400
+
+    document_file = request.files['document']
+    target_lang = request.form.get('language_code', 'en-IN')
+
+    if document_file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    # Read file content into memory
+    file_bytes = document_file.read()
+    
+    try:
+        # --- 1. Perform OCR to extract text (using Tesseract) ---
+        # document_file.content_type provides the MIME type (e.g., 'application/pdf')
+        raw_text = perform_ocr(file_bytes, document_file.content_type) 
+        
+        if not raw_text.strip():
+            return jsonify({'error': 'Could not extract text from the document. Please ensure the image/PDF is clear.'}), 400
+
+        # --- 2. LLM Simplification (Groq) ---
+        system_prompt_llm = f"""You are an expert financial explainer for first-time loan applicants, working in 'Explain Like I'm 18 Mode'. Your task is to analyze the following loan document text.
+        
+        **Your output MUST be formatted using standard Markdown syntax (e.g., ## for headings, * for lists, ** for bolding) to ensure clarity.**
+        
+        ## 💰 Summary of Key Loan Terms
+        1. Summarize the **Key Terms** (Interest Rate, Tenure, EMI, Prepayment Penalty) in a bulleted list, using simple analogies.
+        
+        ## ⚠️ Risks and Commitments Explained
+        2. Provide a **simple explanation** of the main risks and commitments in the document.
+        
+        3. Convert all financial jargon into plain-language and relatable examples.
+        
+        4. The final response must be in English for the next translation step.
+        
+        Document Text:
+        ---
+        {raw_text[:4000]}
+        ---
+        """
+
+        chat_completion = client.chat.completions.create(
+            messages=[{"role": "system", "content": system_prompt_llm}],
+            model="llama-3.3-70b-versatile"
+        )
+
+        english_explanation = chat_completion.choices[0].message.content
+        
+        if not english_explanation.strip():
+            raise Exception("LLM failed to generate an explanation.")
+
+        # --- 3. Translate to Target Vernacular Language (Sarvam AI) ---
+        vernacular_explanation = english_explanation
+        if target_lang != "en-IN":
+            translation_result = translate_long_text(
+                english_explanation,
+                source_lang="en-IN",
+                target_lang=target_lang,
+                speaker_gender="Female",
+                mode="formal",
+                output_script="fully-native",
+                numerals_format="international"
+            )
+            
+            if "translated_text" in translation_result:
+                vernacular_explanation = translation_result["translated_text"]
+            else:
+                logging.warning(f"Translation failed for document explanation, using English. Details: {translation_result.get('error')}")
+
+
+        # --- 4. Return the result ---
+        return jsonify({
+            "raw_text": raw_text,
+            "english_explanation": english_explanation,
+            "vernacular_explanation": vernacular_explanation
+        })
+
+    except Exception as e:
+        logging.error(f"Error in document reader: {str(e)}")
+        return jsonify({"error": f"Failed to process document: {str(e)}"}), 500
 
 
 @app.route('/speech-to-text', methods=['POST'])
@@ -325,6 +478,7 @@ def speech_to_text():
             os.remove(file_path)
 
 
+
 @app.route('/text-to-speech', methods=['POST'])
 def text_to_speech():
     """Convert Text to Speech using Sarvam AI."""
@@ -340,17 +494,18 @@ def text_to_speech():
         # Ensure 'lang' global variable is the source if not specified in the request
         source_lang = data.get("source_language_code", lang)
 
+        # --- UPDATED CONFIGURATION FOR VALID SARVAM SPEAKERS/MODELS ---
         LANGUAGE_CONFIG = {
-            'en-IN': {"model": "bulbul:v1", "chunk_size": 500, "silence_bytes": 2000, "speaker": "meera"},
-            'hi-IN': {"model": "bulbul:v1", "chunk_size": 300, "silence_bytes": 3000, "speaker": "meera"},
-            'ta-IN': {"model": "bulbul:v1", "chunk_size": 300, "silence_bytes": 3000, "speaker": "meera"},
-            'te-IN': {"model": "bulbul:v1", "chunk_size": 300, "silence_bytes": 3000, "speaker": "meera"},
-            'kn-IN': {"model": "bulbul:v1", "chunk_size": 300, "silence_bytes": 3000, "speaker": "meera"},
-            'ml-IN': {"model": "bulbul:v1", "chunk_size": 300, "silence_bytes": 3000, "speaker": "meera"},
-            'mr-IN': {"model": "bulbul:v1", "chunk_size": 300, "silence_bytes": 3000, "speaker": "meera"},
-            'bn-IN': {"model": "bulbul:v1", "chunk_size": 300, "silence_bytes": 3000, "speaker": "meera"},
-            'gu-IN': {"model": "bulbul:v1", "chunk_size": 300, "silence_bytes": 3000, "speaker": "meera"},
-            'pa-IN': {"model": "bulbul:v1", "chunk_size": 300, "silence_bytes": 3000, "speaker": "meera"}
+            'en-IN': {"model": "bulbul:v2", "chunk_size": 500, "silence_bytes": 2000, "speaker": "anushka"},
+            'hi-IN': {"model": "bulbul:v2", "chunk_size": 300, "silence_bytes": 3000, "speaker": "abhilash"},
+            'ta-IN': {"model": "bulbul:v2", "chunk_size": 300, "silence_bytes": 3000, "speaker": "vidya"},
+            'te-IN': {"model": "bulbul:v2", "chunk_size": 300, "silence_bytes": 3000, "speaker": "teja"},
+            'kn-IN': {"model": "bulbul:v2", "chunk_size": 300, "silence_bytes": 3000, "speaker": "kavya"},
+            'ml-IN': {"model": "bulbul:v2", "chunk_size": 300, "silence_bytes": 3000, "speaker": "arya"},
+            'mr-IN': {"model": "bulbul:v2", "chunk_size": 300, "silence_bytes": 3000, "speaker": "sakshi"},
+            'bn-IN': {"model": "bulbul:v2", "chunk_size": 300, "silence_bytes": 3000, "speaker": "ishita"},
+            'gu-IN': {"model": "bulbul:v2", "chunk_size": 300, "silence_bytes": 3000, "speaker": "kiran"},
+            'pa-IN': {"model": "bulbul:v2", "chunk_size": 300, "silence_bytes": 3000, "speaker": "ranjit"}
         }
 
         config = LANGUAGE_CONFIG.get(currLang, LANGUAGE_CONFIG['en-IN'])
@@ -438,5 +593,4 @@ def text_to_speech():
 
 
 if __name__ == '__main__':
-    # Changed host and removed ssl_context for standard local development
     app.run(host='127.0.0.1', port=5000, debug=True)

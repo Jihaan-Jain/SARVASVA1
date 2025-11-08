@@ -1,10 +1,7 @@
-"# Sarvasva, the banglore hackahthon"
-
 <div align="center">
 <h1>SARVASVA (सर्वस्व)</h1>
-<h2><p> <strong>Team ID:</strong> S-11 </p></h2> </div>
 
-# 🌟 Track 2 : Multilingual Conversational Loan Advisor
+# 🌟 Track 2 : Fintech
 
 ## Overview
 

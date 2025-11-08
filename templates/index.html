@@ -324,7 +324,7 @@
         border-radius: 8px;
         border: 1px solid rgba(255, 255, 255, 0.3);
         background-color: rgba(255, 255, 255, 0.2);
-        color: white;
+        color: black;
         font-size: 0.9rem;
         cursor: pointer;
         outline: none;
@@ -604,6 +604,27 @@
         animation: pulse 1.5s infinite;
       }
 
+      /* New Document Reader Style */
+      .document-reader-container {
+        padding: 10px 0;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+      }
+      .document-reader-container .action-button {
+        background-color: var(--primary-light);
+        color: var(--primary-color);
+        font-weight: 500;
+        padding: 8px 12px;
+        border-radius: 8px;
+      }
+      .document-reader-container .action-button:hover {
+        background-color: var(--primary-color);
+        color: white;
+      }
+
       /* Responsive Adjustments */
       @media (max-width: 768px) {
         .chat-container {
@@ -802,7 +823,7 @@
                 <option value="te-IN">తెలుగు (Telugu)</option>
                 <option value="kn-IN">ಕನ್ನಡ (Kannada)</option>
                 <option value="ml-IN">മലയാളം (Malayalam)</option>
-                <option value="mr-IN">मराठी (Marathi)</option>
+                <option value="mr-IN">മराठी (Marathi)</option>
                 <option value="bn-IN">বাংলা (Bengali)</option>
                 <option value="gu-IN">ગુજરાતી (Gujarati)</option>
                 <option value="pa-IN">ਪੰਜਾਬੀ (Punjabi)</option>
@@ -834,6 +855,40 @@
         </div>
 
         <div class="chat-input-wrapper">
+          <div class="document-reader-container">
+            <label
+              for="document-upload"
+              class="action-button"
+              style="cursor: pointer"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                ></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <line x1="10" y1="9" x2="8" y2="9"></line>
+              </svg>
+              <span id="doc-upload-label">Upload Loan Document</span>
+            </label>
+            <input
+              type="file"
+              id="document-upload"
+              accept="image/*, application/pdf"
+              style="display: none"
+            />
+          </div>
           <div class="chat-input">
             <div class="chat-input-container">
               <input
@@ -929,13 +984,19 @@
         const responseAudio = document.getElementById("response-audio");
         const themeSwitch = document.getElementById("theme-switch");
 
+        // NEW: Document Reader DOM elements
+        const documentUpload = document.getElementById("document-upload");
+        const docUploadLabel = document.getElementById("doc-upload-label");
+
         // State variables
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
         let currentLanguage = "en-IN";
         let isWaitingForResponse = false;
-        let audioFinishedPlaying = true; // Still useful for queueing TTS
+        let audioFinishedPlaying = true;
+        // NEW: Controls whether the automatic mic loop is enabled after a response
+        let micEnabled = false;
 
         // Check for saved theme preference
         if (localStorage.getItem("darkMode") === "true") {
@@ -998,7 +1059,6 @@
         }
 
         // Function to send initial greeting
-        // Ensure correct language handling
         async function sendInitialGreeting() {
           showTypingIndicator();
 
@@ -1036,8 +1096,7 @@
 
               // Display and speak the translated message
               addMessage(data.response, false);
-              // Do NOT call startSpeechToText(true) here. User can click the mic button when ready.
-              textToSpeech(data.response);
+              await textToSpeech(data.response); // TTS activated for greeting
             })
             .catch((error) => {
               console.error("Error:", error);
@@ -1066,7 +1125,13 @@
 
           const messageContent = document.createElement("div");
           messageContent.classList.add("message-content");
-          messageContent.textContent = message;
+
+          // --- FORMATTING MODIFICATION ---
+          // Convert newline characters (\n) produced by the AI into HTML break tags (<br>)
+          const formattedMessage = message.replace(/\n/g, "<br>");
+          messageContent.innerHTML = formattedMessage;
+          // --- END FORMATTING MODIFICATION ---
+
           messageElement.appendChild(messageContent);
 
           if (withActions) {
@@ -1090,7 +1155,7 @@
               speakIcon.innerHTML = `
                         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
                         <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        <path d="M19.07 4.93a10 0 0 1 0 14.14"></path>
                     `;
 
               speakButton.appendChild(speakIcon);
@@ -1176,7 +1241,7 @@
                 });
 
                 if (translationResponse.ok) {
-                  const translationData = await translationResponse.json();
+                  const translationData = await responseTranslation.json();
                   if (translationData.translated_text) {
                     processedMessage = translationData.translated_text;
                   }
@@ -1239,7 +1304,7 @@
             addMessage(botResponse);
 
             // Play the response as audio
-            await textToSpeech(botResponse);
+            await textToSpeech(botResponse); // REACTIVATED TTS
 
             // Removed the automatic call to startSpeechToText(true) here
           } catch (error) {
@@ -1273,7 +1338,8 @@
 
             // Skip translation if source and target are the same
             if (sourceLang === targetLang) {
-              messageContent.textContent = originalContent;
+              // Re-use formatted message content for text
+              messageContent.innerHTML = originalText.replace(/\n/g, "<br>");
               return;
             }
 
@@ -1297,7 +1363,12 @@
 
             if (data.translated_text) {
               // Replace the original text with translated text
-              messageContent.textContent = data.translated_text;
+              // Use innerHTML to handle formatting
+              const formattedTranslation = data.translated_text.replace(
+                /\n/g,
+                "<br>"
+              );
+              messageContent.innerHTML = formattedTranslation;
 
               // Update the translate button to show "Show Original"
               const translateButton = messageElement.querySelector(
@@ -1337,7 +1408,13 @@
                 );
 
                 newTranslateButton.addEventListener("click", function () {
-                  messageContent.textContent = originalText;
+                  // Restore original text (with formatting)
+                  const originalFormattedText = originalText.replace(
+                    /\n/g,
+                    "<br>"
+                  );
+                  messageContent.innerHTML = originalFormattedText;
+
                   this.innerHTML = "";
                   this.appendChild(translateIcon.cloneNode(true));
                   this.appendChild(document.createTextNode(" Translate"));
@@ -1359,7 +1436,8 @@
             }
           } catch (error) {
             console.error("Translation error:", error);
-            messageElement.querySelector(".message-content").textContent = text; // Restore original text
+            // Restore textContent here to avoid formatting issues on failure
+            messageElement.querySelector(".message-content").textContent = text;
           }
         }
 
@@ -1393,6 +1471,12 @@
             return new Promise((resolve) => {
               responseAudio.onended = () => {
                 audioFinishedPlaying = true;
+
+                // --- VOICE LOOP: Start listening ONLY IF micEnabled state is true ---
+                if (micEnabled) {
+                  startSpeechToText();
+                }
+
                 resolve();
               };
               responseAudio.play();
@@ -1400,7 +1484,13 @@
           } catch (error) {
             console.error("Text-to-speech error:", error);
             audioFinishedPlaying = true;
-            return Promise.resolve(); // Resolve immediately on error
+
+            // If TTS fails, still attempt to start listening IF mic is enabled
+            if (micEnabled) {
+              startSpeechToText();
+            }
+
+            return Promise.resolve();
           }
         }
 
@@ -1443,6 +1533,10 @@
               // Only proceed if there is audio data
               if (audioChunks.length === 0) {
                 console.log("No audio recorded.");
+                // If recording is empty, and mic loop is enabled, restart listening immediately
+                if (micEnabled) {
+                  startSpeechToText();
+                }
                 return;
               }
 
@@ -1480,10 +1574,20 @@
                   console.error(
                     "No transcription returned or empty transcription"
                   );
+
+                  // If transcription is empty, and mic loop is enabled, restart listening immediately
+                  if (micEnabled) {
+                    startSpeechToText();
+                  }
                 }
               } catch (error) {
                 console.error("Speech-to-text error:", error);
                 hideTypingIndicator();
+
+                // If API failed, and mic loop is enabled, restart listening immediately
+                if (micEnabled) {
+                  startSpeechToText();
+                }
               } finally {
                 sendButton.disabled = false;
                 isWaitingForResponse = false;
@@ -1568,10 +1672,83 @@
           }
         }
 
+        // NEW: Document Upload Event Listener (for Vernacular Document Reader)
+        documentUpload.addEventListener("change", async function () {
+          const file = this.files[0];
+          if (!file) return;
+
+          // Temporarily disable mic loop during document processing
+          const wasMicEnabled = micEnabled;
+          micEnabled = false;
+
+          // Display a file processing message
+          const userMsgText = `Processing file: ${file.name} for vernacular explanation...`;
+          addMessage(userMsgText, true, false); // Add user message for file upload
+
+          docUploadLabel.textContent = "Processing...";
+          showTypingIndicator();
+
+          const formData = new FormData();
+          formData.append("document", file);
+          formData.append("language_code", currentLanguage); // Pass target language
+
+          // Pass content type for PDF vs Image handling in perform_ocr
+          formData.append("file_type", file.type);
+
+          try {
+            const response = await fetch("/read-document", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              let errorData = {};
+              try {
+                errorData = JSON.parse(errorText);
+              } catch (e) {
+                errorData = { error: errorText };
+              }
+              throw new Error(
+                errorData.error ||
+                  "Document reading failed. Status: " + response.status
+              );
+            }
+
+            const data = await response.json();
+            hideTypingIndicator();
+            docUploadLabel.textContent = "Upload Loan Document";
+
+            // The response comes back in the target vernacular language
+            const botResponse = data.vernacular_explanation;
+
+            // Add bot response
+            addMessage(botResponse);
+
+            // Play the response as audio
+            await textToSpeech(botResponse);
+          } catch (error) {
+            console.error("Document Reader Error:", error);
+            hideTypingIndicator();
+            docUploadLabel.textContent = "Upload Loan Document";
+            addMessage(
+              `Error processing document: ${error.message}. Please try a clear image/PDF.`
+            );
+          } finally {
+            // Restore mic loop state
+            micEnabled = wasMicEnabled;
+            // Reset the input field so the same file can be uploaded again
+            this.value = "";
+          }
+        });
+        // END NEW: Document Upload Event Listener
+
         // Event listener for send button (TEXT INPUT)
         sendButton.addEventListener("click", function () {
           const message = userInput.value.trim();
           if (message) {
+            // If user types, disable mic loop so they can type the next message
+            micEnabled = false;
             addMessage(message, true);
             userInput.value = "";
             sendMessage(message);
@@ -1583,6 +1760,8 @@
           if (e.key === "Enter") {
             const message = userInput.value.trim();
             if (message) {
+              // If user types, disable mic loop
+              micEnabled = false;
               addMessage(message, true);
               userInput.value = "";
               sendMessage(message);
@@ -1592,14 +1771,16 @@
 
         // Event listener for microphone button (VOICE INPUT CONTROL)
         micButton.addEventListener("click", function () {
-          if (isRecording) {
-            // Stop recording if already recording
+          // If the user clicks the mic button, they explicitly want the voice loop!
+          if (!isRecording) {
+            micEnabled = true; // Enable the loop
+            startSpeechToText();
+          } else {
+            // If they click while recording, stop it and DISABLE the loop.
+            micEnabled = false; // Disable the loop
             if (mediaRecorder && mediaRecorder.state !== "inactive") {
               mediaRecorder.stop();
             }
-          } else {
-            // Start new recording
-            startSpeechToText();
           }
         });
 
