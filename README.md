@@ -1,6 +1,5 @@
 <div align="center">
 <h1>SARVASVA (सर्वस्व)</h1>
-<h2><p> <strong>Team ID:</strong> S-11 </p></h2> </div>
 
 # 🌟 FinTech : Multilingual Conversational Loan Advisor
 
