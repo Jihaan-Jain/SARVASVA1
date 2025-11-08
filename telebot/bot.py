@@ -9,26 +9,10 @@ from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 
-from dotenv import load_dotenv
-
-# Load .env if present (development only)
-load_dotenv()
-
-# Read secrets from environment variables. Fill `.env` from `.env.example` locally.
-TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-SARVAM_API_KEY = os.environ.get("SARVAM_API_KEY")
-
-# Fail fast with a clear message if required secrets are missing
-missing = []
-if not TOKEN:
-    missing.append('TELEGRAM_BOT_TOKEN')
-if not GEMINI_API_KEY:
-    missing.append('GEMINI_API_KEY')
-if not SARVAM_API_KEY:
-    missing.append('SARVAM_API_KEY')
-if missing:
-    raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}.\nPlease create a .env file from .env.example and fill values before running this bot.")
+# Replace with your bot & OpenAI API keys
+TOKEN = "8125759209:AAEWipIexhQeHmIFykw1J3xpG6ujZPRhIyM"
+GEMINI_API_KEY = "AIzaSyC9i96-x18BGKIeV7HOHKn-piu4e5R9IUs"
+SARVAM_API_KEY = "d60e2e18-3b3c-492d-8faf-7f9db7c55201"
 
 # Configure Gemini API
 try:
