@@ -57,28 +57,21 @@ Watch the full system functionality demonstration: [Watch Video](https://drive.g
 - **Transparent Display:** Shows EMIs, total payable amount, and hidden charges upfront
 - **Time-Saving:** Get best rates in seconds instead of visiting multiple banks
 
-### 6. Nearby Lender Locator
-
-- **Location Intelligence:** Identifies nearby banks, NBFCs, and microfinance institutions
-- **Complete Details:** Branch distance, contact info, operating hours, and loan types
-- **Map Integration:** Visual map showing lenders within 2-5km radius
-- **Filter Options:** Search by loan type, interest rate, or distance
-
-### 7. Credit Twin - Personalized AI Credit Coach
+### 6. Credit Twin - Personalized AI Credit Coach
 
 - **Predictive Analysis:** "Save ₹500/month → Boost eligibility by 12%"
 - **Gamified Progress:** Level up your financial credibility with actionable milestones
 - **Future Simulations:** See how financial decisions impact your loan eligibility
 - **Privacy First:** Credit twin data secured on blockchain ledger
 
-### 8. AI Ghost Transaction Simulator
+### 7. AI Ghost Transaction Simulator
 
 - **Pre-Commitment Visualization:** See exact monthly impact before taking loan
 - **Interactive Sandbox:** Test different loan amounts, tenures, and interest rates
 - **Cash Flow Forecast:** Understand how EMI affects your monthly budget
 - **Risk Assessment:** Get warnings about over-borrowing or financial strain
 
-### 9.Voice-Based Vernacular Document Reader
+### 8.Voice-Based Vernacular Document Reader
 
 - **OCR Technology:** Upload any loan document (PDF, image)
 - **Read Aloud:** AI reads document in your native language using Sarvam TTS
